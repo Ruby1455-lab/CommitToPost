@@ -57,12 +57,14 @@ ${commitMessages}
 
 Write an engaging social media post (under 280 characters) about what was built/fixed, staying strictly in character!`;
 
-    // Call Gemini with automatic retry built-in
+ // Call Gemini with automatic retry built-in
     const response = await generateWithRetry(prompt);
-    const postContent = response?.text ?? "";
+    if (!response) {
+      return NextResponse.json({ error: "Failed to generate post." }, { status: 500 });
+    }
+    const postContent = response.text ?? "";
     return NextResponse.json({ post: postContent });
   } catch (error: any) {
     console.error("Error generating post:", error);
     return NextResponse.json({ error: error.message || "Failed to generate post. Please try again." }, { status: 500 });
   }
-}
