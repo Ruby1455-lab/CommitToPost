@@ -82,7 +82,6 @@ export default function Home() {
       await signInWithPopup(auth, githubProvider);
     } catch (error) {
       console.error("GitHub sign-in error:", error);
-      // Local fallback for quick UI preview
       setUser({
         displayName: "GitHub Developer",
         email: "dev@github.com",
@@ -166,7 +165,7 @@ export default function Home() {
         setHustleScore(data.hustleScore);
         setBadge(data.badge);
         setImpactSummary(data.impactSummary);
-        setCredits((prev) => Math.max(0, prev - 1)); // Deduct 1 credit per generation
+        setCredits((prev) => Math.max(0, prev - 1));
       }
     } catch (err) {
       console.error(err);
