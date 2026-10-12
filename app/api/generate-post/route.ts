@@ -59,7 +59,7 @@ Write an engaging social media post (under 280 characters) about what was built/
 
     // Call Gemini with automatic retry built-in
     const response = await generateWithRetry(prompt);
-   const postContent = typeof response?.text === 'function' ? response.text() : (response?.text ?? "");
+    const postContent = response?.text ?? "";
     return NextResponse.json({ post: postContent });
   } catch (error: any) {
     console.error("Error generating post:", error);
