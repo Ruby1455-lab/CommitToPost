@@ -141,17 +141,12 @@ export default function Home() {
     setSchedulingSuccess(false);
 
     try {
-      const commitList = commits
-        .split("\n")
-        .filter((line) => line.trim() !== "")
-        .map((msg) => ({ commit: { message: msg } }));
-
       const response = await fetch("/api/generate-post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repoName: repoName || "my-awesome-project",
-          commits: commitList,
+          commitLog: commits,
           persona: persona,
         }),
       });
