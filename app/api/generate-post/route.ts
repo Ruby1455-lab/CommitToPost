@@ -3,6 +3,9 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+// Helper function to pause execution for retries
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function POST(request: Request) {
   try {
     const { commitLog, repoName, persona } = await request.json();
@@ -25,32 +28,36 @@ export async function POST(request: Request) {
       - "impactSummary": A short 1-sentence summary of the technical impact.
     `;
 
-    // Try primary model first, fallback to backup models if 503 high demand occurs
-    const modelsToTry = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"];
+    // Try standard stable model names first, then preview flashes
+    const modelsToTry = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.8-flash"];
     let text = "";
-    let lastError = null;
 
     for (const modelName of modelsToTry) {
-      try {
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-        });
+      // Retry up to 2 times per model if hit with 503 capacity issues
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+          });
 
-        if (response.text) {
-          text = response.text;
-          break; // Success! Break out of loop
+          if (response.text) {
+            text = response.text;
+            break;
+          }
+        } catch (err: any) {
+          console.warn(`[${modelName}] Attempt ${attempt + 1} failed: ${err.message}`);
+          if (attempt < 1) await sleep(1000); // Wait 1 second before retrying
         }
-      } catch (err: any) {
-        console.warn(`Model ${modelName} failed or busy. Trying fallback...`, err.message);
-        lastError = err;
       }
+      if (text) break; // Exit main loop if successfully generated
     }
 
     if (!text) {
-      return NextResponse.json({ 
-        error: "Google AI servers are currently overloaded. Please wait a few seconds and try again." 
-      }, { status: 503 });
+      return NextResponse.json(
+        { error: "Google AI servers are temporarily busy. Please wait 10 seconds and click Generate again!" },
+        { status: 503 }
+      );
     }
 
     let data;
@@ -66,15 +73,20 @@ export async function POST(request: Request) {
       };
     }
 
-    return NextResponse.json({
-      post: data.post,
-      hustleScore: data.hustleScore || 85,
-      badge: data.badge || "Dev Grind",
-      impactSummary: data.impactSummary || "Solid engineering output.",
-    }, { status: 200 });
-
+    return NextResponse.json(
+      {
+        post: data.post,
+        hustleScore: data.hustleScore || 85,
+        badge: data.badge || "Dev Grind",
+        impactSummary: data.impactSummary || "Solid engineering output.",
+      },
+      { status: 200 }
+    );
   } catch (error: any) {
     console.error("Gemini generation error:", error);
-    return NextResponse.json({ error: error.message || "Internal server error during generation." }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Internal server error during generation." },
+      { status: 500 }
+    );
   }
 }
